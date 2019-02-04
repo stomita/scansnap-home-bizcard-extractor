@@ -7,14 +7,12 @@ import jsforce, { Connection } from 'jsforce';
 const SCANSNAP_DB_DIR = path.join(os.homedir(), '/Library/Application Support/PFU/ScanSnap Home/Managed/');
 const SCANSNAP_FILE_DIR = path.join(os.homedir(), '/Documents/ScanSnapHomeフォルダ');
 const SCANSNAP_DB_FILE = path.join(SCANSNAP_DB_DIR, 'ScanSnapHome.sqlite');
+const TIMESTAMP_FILE = '.timestamp';
 
 type ContentEntry = {
   ZFILENAME: string,
-  ZFAMILYNAME: string,
-  ZFIRSTNAME: string,
   ZEMAIL: string,
-  ZCOMPANY: string,
-  ZADDRESS: string
+  ZCREATEDATE: number,
 };
 
 async function fetchRecs(db: sqlite3.Database, sql: string) {
@@ -34,8 +32,19 @@ async function fetchRecs(db: sqlite3.Database, sql: string) {
 async function main() {
   const db = new sqlite3.Database(SCANSNAP_DB_FILE);
   const conn: Connection = (jsforce as any).registry.getConnection(process.env.SF_USERNAME);
+  let lastDate: string
   try {
-    const sql = 'SELECT * FROM ZCONTENT';
+    lastDate = fs.readFileSync(TIMESTAMP_FILE, 'utf8');
+  } catch (e) {
+    lastDate = '0';
+  }
+  try {
+    const sql = `
+    SELECT ZEMAIL, ZFILENAME, ZCREATEDATE
+    FROM ZCONTENT
+    WHERE ZCREATEDATE > ${lastDate}
+    ORDER BY ZCREATEDATE DESC
+    `;
     const recs = await fetchRecs(db, sql);
     console.log('recs', recs);
     for (const rec of recs) {
@@ -74,6 +83,9 @@ async function main() {
           await conn.sobject('ContentDocumentLink').create(contentDocumentLink);
         }
       }
+    }
+    if (recs[0]) {
+      fs.writeFileSync(TIMESTAMP_FILE, String(recs[0].ZCREATEDATE), 'utf8');
     }
   } catch(e) {
     console.log(e);
