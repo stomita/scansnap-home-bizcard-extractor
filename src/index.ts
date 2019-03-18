@@ -10,8 +10,7 @@ const SCANSNAP_DB_FILE = path.join(SCANSNAP_DB_DIR, 'ScanSnapHome.sqlite');
 const TIMESTAMP_FILE = '.timestamp';
 
 type ContentEntry = {
-  ZFAMILYNAME: string | null,
-  ZFIRSTNAME: string | null,
+  ZFULLNAME: string | null,
   ZCOMPANY: string | null,
   ZDEPARTMENT: string | null,
   ZJOBTITLE: string | null,
@@ -63,17 +62,17 @@ async function main() {
   try {
     const sql = `
     SELECT
-      ZFAMILYNAME, ZFIRSTNAME, ZCOMPANY, ZDEPARTMENT, ZJOBTITLE,
+      ZFULLNAME, ZCOMPANY, ZDEPARTMENT, ZJOBTITLE,
       ZZIPCODE, ZADDRESS, ZPHONENUMBER, ZFAXNUMBER, ZEMAIL, ZMEMO,
       ZFILENAME, ZCREATEDATE
     FROM ZCONTENT
-    WHERE ZCREATEDATE > ${lastDate}
+    WHERE ZCREATEDATE > ${lastDate} AND ZDOCTYPE = 3
     ORDER BY ZCREATEDATE DESC
     `;
     const recs = await fetchRecs(db, sql);
     const leads: Lead[] = recs.map((rec) => ({
-      FirstName: rec.ZFIRSTNAME,
-      LastName: rec.ZFAMILYNAME,
+      FirstName: (rec.ZFULLNAME || '').split(/\s+/)[1],
+      LastName: (rec.ZFULLNAME || '').split(/\s+/)[0],
       Company: rec.ZCOMPANY,
       Title: [
         ...(rec.ZDEPARTMENT ? [rec.ZDEPARTMENT] : []),
@@ -118,6 +117,7 @@ async function main() {
       }
     }
     if (recs[0]) {
+      fs.writeFileSync(`${TIMESTAMP_FILE}.bak`, String(lastDate), 'utf8');
       fs.writeFileSync(TIMESTAMP_FILE, String(recs[0].ZCREATEDATE), 'utf8');
     }
   } catch(e) {
