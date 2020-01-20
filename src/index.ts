@@ -91,29 +91,33 @@ async function main() {
     const retEntries: IterableIterator<[number, jsforce.RecordResult]> = rets.entries();
     for (const [i, ret] of retEntries) {
       if (!ret.success) { continue; }
-      const id = ret.id
-      const rec = recs[i];
-      const email = rec.ZEMAIL;
-      const fileName = rec.ZFILENAME;
-      const filePath = path.join(SCANSNAP_FILE_DIR, fileName);
-      const data = fs.readFileSync(filePath);
-      console.log('#####', email, '#####');
-      const contentVersion = {
-        Title: fileName,
-        VersionData: data.toString('base64'),
-        PathOnClient: fileName,
-      };
-      const contentDocumentLink = {
-        LinkedEntityId: id,
-        ContentDocumentId: '' as string | undefined,
-        ShareType: 'V',
-      };
-      const ret2 = await conn.sobject('ContentVersion').create(contentVersion);
-      if (ret2.success) {
-        console.log('content version created', ret2.id);
-        const version: any = await conn.sobject('ContentVersion').findOne({ Id: ret2.id }, ['Id', 'ContentDocumentId']);
-        contentDocumentLink.ContentDocumentId = version.ContentDocumentId;
-        await conn.sobject('ContentDocumentLink').create(contentDocumentLink);
+      try {
+        const id = ret.id
+        const rec = recs[i];
+        const email = rec.ZEMAIL;
+        const fileName = rec.ZFILENAME;
+        const filePath = path.join(SCANSNAP_FILE_DIR, fileName);
+        const data = fs.readFileSync(filePath);
+        console.log('#####', email, '#####');
+        const contentVersion = {
+          Title: fileName,
+          VersionData: data.toString('base64'),
+          PathOnClient: fileName,
+        };
+        const contentDocumentLink = {
+          LinkedEntityId: id,
+          ContentDocumentId: '' as string | undefined,
+          ShareType: 'V',
+        };
+        const ret2 = await conn.sobject('ContentVersion').create(contentVersion);
+        if (ret2.success) {
+          console.log('content version created', ret2.id);
+          const version: any = await conn.sobject('ContentVersion').findOne({ Id: ret2.id }, ['Id', 'ContentDocumentId']);
+          contentDocumentLink.ContentDocumentId = version.ContentDocumentId;
+          await conn.sobject('ContentDocumentLink').create(contentDocumentLink);
+        }
+      } catch(e) {
+        console.log(e.message);
       }
     }
     if (recs[0]) {
